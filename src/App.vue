@@ -13,6 +13,7 @@ const activeLang = ref('EN');
 const languages = ref(['EN', 'AR', 'ES', 'FR', 'DE']);
 const activeQuestionId = ref(null);
 
+// Initial State (Flat string, parser will add temp IDs)
 const multiLangSyntax = ref({
   EN: "{{R}}Please rate the quality of the Program\n{{COL}} Unsatisfied\n{{COL}} Satisfied\n{{ROW}} Education\n{{ROW}} Engagement\n\n{{SS}}Which platform do you prefer?\n{{COL}} Desktop\n{{COL}} Mobile",
   AR: "{{R}}يرجى تقييم جودة البرنامج\n{{COL}} غير راضٍ\n{{COL}} راضٍ\n{{ROW}} تعليم\n\n{{SS}}أي منصة تفضل؟\n{{COL}} سطح المكتب",
@@ -20,6 +21,63 @@ const multiLangSyntax = ref({
   FR: "",
   DE: ""
 });
+
+// Mock Data for "Pre-Activity"
+const MOCK_DATA = [
+  {
+    id: "q-1",
+    type: "R",
+    title: "How effective was the training?",
+    rows: [
+      { id: "r-1", text: "Clarity" },
+      { id: "r-2", text: "Pacing" }
+    ],
+    cols: [
+      { id: "c-1", text: "Low" },
+      { id: "c-2", text: "High" }
+    ]
+  },
+  {
+    id: "q-2",
+    type: "SS",
+    title: "Years of experience?",
+    rows: [],
+    cols: [
+      { id: "c-3", text: "0-2" },
+      { id: "c-4", text: "3-5" },
+      { id: "c-5", text: "5+" }
+    ]
+  },
+  {
+    id: "q-3",
+    type: "MS",
+    title: "Preferred tools?",
+    rows: [],
+    cols: [
+      { id: "c--6", text: "Vue" },
+      { id: "c-7", text: "React" },
+      { id: "c-8", text: "Angular" }
+    ]
+  }
+];
+
+const loadExistingSurvey = () => {
+    console.log("Loading Pre-Activity Mock Data...", MOCK_DATA);
+    // Convert Mock Data Objects -> Syntax String with IDs
+    const syntax = generateSyntax(MOCK_DATA);
+    
+    // Update Master (EN)
+    multiLangSyntax.value['EN'] = syntax;
+    
+    // Clear others or simulate translation??
+    // Let's just reset others to empty to force user to 'Sync'
+    languages.value.forEach(l => {
+        if (l !== 'EN') multiLangSyntax.value[l] = "";
+    });
+    
+    activeLang.value = 'EN';
+    alert("Pre-Activity Survey Loaded! Check console.");
+};
 
 const structures = computed(() => {
   const s = {};
@@ -46,11 +104,11 @@ const handleVisualUpdate = (index, updates) => {
 const addQuestion = (type) => {
   const currentQuestions = [...structures.value[activeLang.value]];
   currentQuestions.push({
-    id: Date.now().toString(),
+    id: `temp-q-${Date.now()}`,
     type,
     title: "New Question",
-    cols: ["Option 1"],
-    rows: type === 'R' ? ["Row 1"] : []
+    cols: [{ id: `temp-c-${Date.now()}-1`, text: "Option 1" }],
+    rows: type === 'R' ? [{ id: `temp-r-${Date.now()}-1`, text: "Row 1" }] : []
   });
   updateSyntax(activeLang.value, generateSyntax(currentQuestions));
 };
@@ -65,21 +123,71 @@ const syncAllToMaster = (lang) => {
   const master = structures.value[languages.value[0]];
   const current = structures.value[lang];
   
+  // Try to match by ID first? Or just index as per original logic?
+  // User asked for "Missing mustache tags from Master to secondary".
+  // If we assume structure sync, we copy master structure and fill text from current if available.
+  
   const synced = master.map((mQ, i) => {
+    // Attempt to find matching Question in current by ID or Index
+    // Since current might not have IDs yet, simple index fallback is safer for now unless we know current has IDs.
     const cQ = current[i] || {};
+    
     return {
-      ...mQ,
+      ...mQ, // Copy Master Structure (IDs, Type)
       title: cQ.title || `[Needs Translation: ${mQ.title}]`,
-      cols: mQ.cols.map((_, colIdx) => cQ.cols?.[colIdx] || ""),
-      rows: mQ.rows.map((_, rowIdx) => cQ.rows?.[rowIdx] || "")
+      // Map cols/rows. Use Master's IDs. Try to preserve Current's text.
+      cols: mQ.cols.map((mCol, colIdx) => ({
+          id: mCol.id,
+          text: cQ.cols?.[colIdx]?.text || ""
+      })),
+      rows: mQ.rows.map((mRow, rowIdx) => ({
+          id: mRow.id,
+          text: cQ.rows?.[rowIdx]?.text || ""
+      }))
     };
   });
   updateSyntax(lang, generateSyntax(synced));
 };
 
 const saveProject = () => {
-    console.log("Saving Project...", JSON.stringify(multiLangSyntax.value, null, 2));
-    alert("Project saved! Check console for JSON output.");
+    // Finalize IDs: Replace 'temp-' IDs with real UUIDs
+    const masterQuestions = [...structures.value['EN']];
+    let hasUpdates = false;
+    
+    const generateUuid = (prefix) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
+
+    masterQuestions.forEach(q => {
+        if (!q.id || q.id.startsWith('temp-')) {
+            q.id = generateUuid('q');
+            hasUpdates = true;
+        }
+        q.cols.forEach(c => {
+            if (!c.id || c.id.startsWith('temp-')) {
+                c.id = generateUuid('c');
+                hasUpdates = true;
+            }
+        });
+        q.rows.forEach(r => {
+             if (!r.id || r.id.startsWith('temp-')) {
+                r.id = generateUuid('r');
+                hasUpdates = true;
+            }
+        });
+    });
+
+    if (hasUpdates) {
+        updateSyntax('EN', generateSyntax(masterQuestions));
+    }
+
+    // Allow Vue to react to the update before logging (nextTick would be better but simple sequential call works for ref sync usually if logic is sync)
+    // Actually generateSyntax above updates the ref.
+    
+    // We should probably wait a tick, but for now just logging the *updated* ref value is fine.
+    // However, the computed 'structures' might not have re-run yet? 
+    // updateSyntax updates 'multiLangSyntax'. 
+    
+    console.log("Saving Project (IDs Finalized)...", JSON.stringify(multiLangSyntax.value, null, 2));
+    alert("Project saved! IDs finalized.");
 }
 
 </script>
@@ -93,7 +201,7 @@ const saveProject = () => {
         <span class="hidden md:block font-semibold">PRIME Admin</span>
       </div>
       <div class="flex-1 mt-4 px-2 space-y-1">
-        <div v-for="(l, i) in ['Outcomes', 'Reporting', 'Tools', 'User Manager']" :key="i" class="p-3 rounded flex items-center gap-3 cursor-pointer" :class="l === 'Tools' ? 'bg-blue-600' : 'hover:bg-white/5'">
+        <div v-for="(l, i) in ['Tools']" :key="i" class="p-3 rounded flex items-center gap-3 cursor-pointer" :class="l === 'Tools' ? 'bg-blue-600' : 'hover:bg-white/5'">
           <Settings2 :size="18" /> <span class="hidden md:block text-sm">{{ l }}</span>
         </div>
       </div>
@@ -107,6 +215,7 @@ const saveProject = () => {
           <input class="w-full pl-9 pr-4 py-1.5 bg-gray-100 rounded text-sm outline-none focus:bg-white border border-transparent focus:border-blue-200 transition" placeholder="Search Project..." />
         </div>
         <div class="flex items-center gap-4">
+           <button @click="loadExistingSurvey" class="border border-blue-600 text-blue-600 hover:bg-blue-50 px-4 py-1.5 rounded text-sm font-bold transition mr-2">LOAD PRE-ACTIVITY</button>
            <button @click="saveProject" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm font-bold shadow-sm transition">SAVE / EXPORT</button>
            <div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">LF</div>
         </div>

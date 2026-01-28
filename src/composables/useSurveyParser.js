@@ -2,6 +2,20 @@ import { ref, computed } from 'vue';
 
 export function useSurveyParser() {
   
+  // Helper to extract ID and clean text
+  // Returns { id: string | null, text: string }
+  const parseLine = (line) => {
+    const idMatch = line.match(/\{\{ID:(.*?)\}\}/);
+    const text = line.replace(/\{\{ID:.*?\}\}/, '').trim();
+    return {
+      id: idMatch ? idMatch[1] : null,
+      text
+    };
+  };
+
+  // Helper to generate a temp ID if missing
+  const generateTempId = (prefix, ...indices) => `temp-${prefix}-${indices.join('-')}`;
+
   // Parser: Extract multiple questions and their components
   const parseQuestions = (syntax) => {
     if (!syntax) return [];
@@ -15,19 +29,36 @@ export function useSurveyParser() {
 
       const qMatch = trimmed.match(/^\{\{(R|SS|MS)\}\}(.*)/);
       if (qMatch) {
-        if (currentQ) questions.push(currentQ);
-        currentQ = {
-          id: `q-${index}`, // Stable ID based on index
+         if (currentQ) questions.push(currentQ);
+         
+         const rawTitle = qMatch[2].trim();
+         const parsedTitle = parseLine(rawTitle);
+         
+         const qIndex = questions.length; // Approximate index for temp ID
+         currentQ = {
+          id: parsedTitle.id || generateTempId('q', qIndex), 
           type: qMatch[1], // R, SS, MS
-          title: qMatch[2].trim(),
+          title: parsedTitle.text,
           cols: [],
           rows: []
         };
       } else if (currentQ) {
         if (trimmed.startsWith('{{COL}}')) {
-          currentQ.cols.push(trimmed.replace('{{COL}}', '').trim());
+          const raw = trimmed.replace('{{COL}}', '').trim();
+          const parsed = parseLine(raw);
+          const cIndex = currentQ.cols.length;
+          currentQ.cols.push({
+             id: parsed.id || generateTempId('c', questions.length, cIndex),
+             text: parsed.text
+          });
         } else if (trimmed.startsWith('{{ROW}}')) {
-          currentQ.rows.push(trimmed.replace('{{ROW}}', '').trim());
+          const raw = trimmed.replace('{{ROW}}', '').trim();
+          const parsed = parseLine(raw);
+          const rIndex = currentQ.rows.length;
+          currentQ.rows.push({
+             id: parsed.id || generateTempId('r', questions.length, rIndex),
+             text: parsed.text
+          });
         }
       }
     });
@@ -38,9 +69,20 @@ export function useSurveyParser() {
 
   const generateSyntax = (questions) => {
     return questions.map(q => {
-      let s = `{{${q.type}}}${q.title}\n`;
-      q.cols.forEach(c => s += `{{COL}} ${c}\n`);
-      q.rows.forEach(r => s += `{{ROW}} ${r}\n`);
+      // Only write ID if it is NOT temporary
+      const qIdTag = q.id && !q.id.startsWith('temp-') ? `{{ID:${q.id}}}` : '';
+      let s = `{{${q.type}}}${qIdTag} ${q.title}\n`;
+      
+      q.cols.forEach(c => {
+        const cIdTag = c.id && !c.id.startsWith('temp-') ? `{{ID:${c.id}}}` : '';
+        s += `{{COL}} ${cIdTag} ${c.text}\n`;
+      });
+      
+      q.rows.forEach(r => {
+        const rIdTag = r.id && !r.id.startsWith('temp-') ? `{{ID:${r.id}}}` : '';
+        s += `{{ROW}} ${rIdTag} ${r.text}\n`;
+      });
+      
       return s;
     }).join('\n');
   };

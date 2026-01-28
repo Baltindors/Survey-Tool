@@ -21,9 +21,13 @@ const updateQuestion = (updates) => {
   emit('update', { ...props.question, ...updates });
 };
 
-const updateCol = (index, value) => {
+// Helper: generate new ID for new items (always temp)
+const generateId = (prefix) => `temp-${prefix}-${Date.now().toString(36)}`;
+
+const updateColText = (index, text) => {
   const newCols = [...props.question.cols];
-  newCols[index] = value;
+  // Preserve ID, update text
+  newCols[index] = { ...newCols[index], text };
   updateQuestion({ cols: newCols });
 };
 
@@ -33,12 +37,13 @@ const removeCol = (index) => {
 };
 
 const addCol = () => {
-  updateQuestion({ cols: [...props.question.cols, "New Option"] });
+  const newCol = { id: generateId('c'), text: "New Option" };
+  updateQuestion({ cols: [...props.question.cols, newCol] });
 };
 
-const updateRow = (index, value) => {
+const updateRowText = (index, text) => {
   const newRows = [...props.question.rows];
-  newRows[index] = value;
+  newRows[index] = { ...newRows[index], text };
   updateQuestion({ rows: newRows });
 };
 
@@ -48,7 +53,8 @@ const removeRow = (index) => {
 };
 
 const addRow = () => {
-  updateQuestion({ rows: [...props.question.rows, "New Row"] });
+  const newRow = { id: generateId('r'), text: "New Row" };
+  updateQuestion({ rows: [...props.question.rows, newRow] });
 };
 </script>
 
@@ -61,10 +67,13 @@ const addRow = () => {
     <!-- Card Header: Type Selector & Delete -->
     <div class="flex items-center justify-between mb-6 border-b pb-3">
       <div class="flex items-center gap-3">
-        <div class="bg-blue-50 text-blue-600 p-2 rounded-lg">
-          <Grid3X3 v-if="question.type === 'R'" :size="18"/>
-          <CheckSquare v-else-if="question.type === 'MS'" :size="18"/>
-          <List v-else :size="18"/>
+        <div class="flex flex-col items-center gap-1">
+             <div class="bg-blue-50 text-blue-600 p-2 rounded-lg">
+              <Grid3X3 v-if="question.type === 'R'" :size="18"/>
+              <CheckSquare v-else-if="question.type === 'MS'" :size="18"/>
+              <List v-else :size="18"/>
+            </div>
+            <span v-if="question.id && !question.id.startsWith('temp-')" class="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-mono">#{{ question.id }}</span>
         </div>
         <div class="flex flex-col">
           <label class="text-[9px] font-bold text-gray-400 uppercase">Question Type</label>
@@ -102,10 +111,11 @@ const addRow = () => {
         <thead>
           <tr>
             <th class="w-32"></th>
-            <th v-for="(col, cIdx) in question.cols" :key="cIdx" class="p-1 group relative">
+            <!-- Use col.id for key -->
+            <th v-for="(col, cIdx) in question.cols" :key="col.id" class="p-1 group relative">
               <input 
-                :value="col"
-                @input="e => updateCol(cIdx, e.target.value)"
+                :value="col.text"
+                @input="e => updateColText(cIdx, e.target.value)"
                 class="w-full text-[10px] text-center font-bold text-gray-500 border-none bg-gray-50 rounded py-2 outline-none"
               />
               <button v-if="isMaster" @click="removeCol(cIdx)" class="absolute -top-1 right-0 opacity-0 group-hover:opacity-100 text-red-400"><Trash2 :size="10"/></button>
@@ -114,13 +124,13 @@ const addRow = () => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, rIdx) in question.rows" :key="rIdx" class="group">
+          <tr v-for="(row, rIdx) in question.rows" :key="row.id" class="group">
             <td class="py-2 pr-2">
               <div class="flex items-center gap-1">
                 <button v-if="isMaster" @click="removeRow(rIdx)" class="opacity-0 group-hover:opacity-100 text-red-300"><Trash2 :size="12"/></button>
                 <input 
-                  :value="row"
-                  @input="e => updateRow(rIdx, e.target.value)"
+                  :value="row.text"
+                  @input="e => updateRowText(rIdx, e.target.value)"
                   class="w-full text-xs font-medium border-none p-1 hover:bg-blue-50/50 rounded outline-none"
                 />
               </div>
@@ -140,11 +150,12 @@ const addRow = () => {
     </div>
 
     <div v-else class="space-y-2">
-      <div v-for="(opt, oIdx) in question.cols" :key="oIdx" class="flex items-center gap-3 group bg-gray-50/50 p-2 rounded-lg border border-transparent hover:border-blue-100">
+      <!-- Use col.id for key -->
+      <div v-for="(opt, oIdx) in question.cols" :key="opt.id" class="flex items-center gap-3 group bg-gray-50/50 p-2 rounded-lg border border-transparent hover:border-blue-100">
         <div class="w-4 h-4 border-2 border-gray-300 shrink-0" :class="question.type === 'MS' ? 'rounded' : 'rounded-full'" />
         <input 
-          :value="opt"
-          @input="e => updateCol(oIdx, e.target.value)"
+          :value="opt.text"
+          @input="e => updateColText(oIdx, e.target.value)"
           class="flex-1 bg-transparent border-none text-xs font-medium focus:ring-0 p-0 outline-none"
         />
         <button v-if="isMaster" @click="removeCol(oIdx)" class="opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500"><Trash2 :size="14"/></button>
