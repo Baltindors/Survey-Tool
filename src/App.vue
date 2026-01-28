@@ -10,16 +10,15 @@ import VisualEditor from './components/VisualEditor.vue';
 const { parseQuestions, generateSyntax, validateStructure } = useSurveyParser();
 
 const activeLang = ref('EN');
-const languages = ref(['EN', 'AR', 'ES', 'FR', 'DE']);
+const languages = ref(['EN']);
+const availableLanguages = ['AR', 'ES', 'FR', 'DE', 'IT', 'PT', 'RU', 'ZH', 'JA'];
+const isLangDropdownOpen = ref(false);
 const activeQuestionId = ref(null);
 
 // Initial State (Flat string, parser will add temp IDs)
+// Initial State (Flat string, parser will add temp IDs)
 const multiLangSyntax = ref({
-  EN: "{{R}}Please rate the quality of the Program\n{{COL}} Unsatisfied\n{{COL}} Satisfied\n{{ROW}} Education\n{{ROW}} Engagement\n\n{{SS}}Which platform do you prefer?\n{{COL}} Desktop\n{{COL}} Mobile",
-  AR: "{{R}}يرجى تقييم جودة البرنامج\n{{COL}} غير راضٍ\n{{COL}} راضٍ\n{{ROW}} تعليم\n\n{{SS}}أي منصة تفضل؟\n{{COL}} سطح المكتب",
-  ES: "",
-  FR: "",
-  DE: ""
+  EN: "{{R}}Please rate the quality of the Program\n{{COL}} Unsatisfied\n{{COL}} Satisfied\n{{ROW}} Education\n{{ROW}} Engagement\n\n{{SS}}Which platform do you prefer?\n{{COL}} Desktop\n{{COL}} Mobile"
 });
 
 // Mock Data for "Pre-Activity"
@@ -71,6 +70,8 @@ const loadExistingSurvey = () => {
     
     // Clear others or simulate translation??
     // Let's just reset others to empty to force user to 'Sync'
+    // Clear others or simulate translation??
+    // Let's just reset others to empty to force user to 'Sync'
     languages.value.forEach(l => {
         if (l !== 'EN') multiLangSyntax.value[l] = "";
     });
@@ -119,6 +120,28 @@ const deleteQuestion = (index) => {
   updateSyntax(activeLang.value, generateSyntax(currentQuestions));
 };
 
+const toggleLanguage = (lang) => {
+  if (lang === 'EN') return; // Master is locked
+
+  const idx = languages.value.indexOf(lang);
+  if (idx === -1) {
+    // Add
+    languages.value.push(lang);
+    if (!multiLangSyntax.value[lang]) {
+        multiLangSyntax.value[lang] = ""; // Initialize
+    }
+  } else {
+    // Remove
+    if (confirm(`Are you sure you want to remove ${lang}? This will delete its content.`)) {
+        languages.value.splice(idx, 1);
+        delete multiLangSyntax.value[lang]; // Optional: Clean up memory (or keep it if untoggled? Plan said delete)
+        if (activeLang.value === lang) {
+            activeLang.value = 'EN';
+        }
+    }
+  }
+};
+
 const syncAllToMaster = (lang) => {
   const master = structures.value[languages.value[0]];
   const current = structures.value[lang];
@@ -150,6 +173,19 @@ const syncAllToMaster = (lang) => {
 };
 
 const saveProject = () => {
+    // Global Validation Check
+    const errors = [];
+    languages.value.forEach(lang => {
+        if (!validation.value[lang].isValid) {
+            errors.push(lang);
+        }
+    });
+
+    if (errors.length > 0) {
+        alert(`Cannot save: The following languages have structural errors:\n\n${errors.join(', ')}\n\nPlease fix them before exporting.`);
+        return;
+    }
+
     // Finalize IDs: Replace 'temp-' IDs with real UUIDs
     const masterQuestions = [...structures.value['EN']];
     let hasUpdates = false;
@@ -223,22 +259,57 @@ const saveProject = () => {
 
       <div class="flex-1 overflow-y-auto p-6 max-w-7xl mx-auto w-full">
         <!-- Top Bar: Languages -->
-        <div class="flex items-center justify-between border-b mb-6 bg-white rounded-t-lg px-4 shadow-sm">
-          <div class="flex gap-1 overflow-x-auto">
-            <button 
-              v-for="lang in languages"
-              :key="lang"
-              @click="activeLang = lang"
-              class="relative px-6 py-4 text-xs font-black transition flex items-center gap-2 tracking-tighter shrink-0"
-              :class="activeLang === lang ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'"
-            >
-              {{ lang }}
-              <AlertCircle v-if="!validation[lang].isValid" :size="12" class="text-red-500" />
-              <CheckCircle2 v-else-if="lang !== languages[0]" :size="12" class="text-green-500" />
-            </button>
-            <button class="px-4 text-gray-300 hover:text-blue-500 transition"><Plus :size="16"/></button>
+        <div class="flex items-center justify-between border-b mb-6 bg-white rounded-t-lg px-4 shadow-sm relative z-20">
+          <div class="flex items-center flex-1 gap-2 min-w-0">
+            <!-- Scrollable Tabs -->
+            <div class="flex gap-1 overflow-x-auto no-scrollbar scroll-smooth flex-1">
+                <button 
+                v-for="lang in languages"
+                :key="lang"
+                @click="activeLang = lang"
+                class="relative px-6 py-4 text-xs font-black transition flex items-center gap-2 tracking-tighter shrink-0 whitespace-nowrap"
+                :class="activeLang === lang ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'"
+                >
+                {{ lang }}
+                <AlertCircle v-if="!validation[lang].isValid" :size="12" class="text-red-500" />
+                <CheckCircle2 v-else-if="lang !== languages[0]" :size="12" class="text-green-500" />
+                </button>
+            </div>
+
+            <!-- Fixed Add Button -->
+            <div class="pl-2 border-l border-gray-100 relative shrink-0 z-50">
+                 <button class="relative px-2 py-2 text-gray-300 hover:text-blue-500 transition rounded-full hover:bg-gray-50" @click="isLangDropdownOpen = !isLangDropdownOpen">
+                    <Plus :size="18"/>
+                 </button>
+                 
+                 <!-- Dropdown -->
+                 <div v-if="isLangDropdownOpen" class="absolute top-full right-0 mt-2 w-48 bg-white border rounded-lg shadow-xl z-50 py-2 flex flex-col items-start overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-100">
+                      <h3 class="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-full text-left">Manage Languages</h3>
+                      <div class="w-full max-h-60 overflow-y-auto custom-scrollbar">
+                          <label 
+                              v-for="lang in availableLanguages" 
+                              :key="lang"
+                              class="flex items-center gap-3 px-4 py-2 hover:bg-blue-50 cursor-pointer w-full text-left group transition-colors"
+                          >
+                              <div class="relative flex items-center">
+                                  <input 
+                                      type="checkbox" 
+                                      :checked="languages.includes(lang)"
+                                      :disabled="lang === 'EN'"
+                                      @change="toggleLanguage(lang)"
+                                      class="peer appearance-none w-4 h-4 border-2 border-gray-300 rounded checked:bg-blue-600 checked:border-blue-600 transition disabled:opacity-50"
+                                  />
+                                   <CheckCircle2 class="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none left-0.5" :size="12" />
+                              </div>
+                              <span class="text-xs font-bold" :class="languages.includes(lang) ? 'text-blue-900' : 'text-gray-500 group-hover:text-blue-600'">{{ lang }}</span>
+                          </label>
+                      </div>
+                  </div>
+            </div>
           </div>
-          <div v-if="!validation[activeLang].isValid" class="flex items-center pl-4">
+
+          <!-- Right Side: Validation / Sync -->
+          <div v-if="!validation[activeLang].isValid" class="flex items-center pl-4 shrink-0">
             <button 
               @click="syncAllToMaster(activeLang)"
               class="flex items-center gap-2 text-[10px] font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full border border-red-100 hover:bg-red-100 transition animate-pulse whitespace-nowrap"
