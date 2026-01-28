@@ -7,7 +7,8 @@ const props = defineProps({
     type: Array,
     required: true
   },
-  activeQuestionId: String
+  activeQuestionId: String,
+  isMaster: Boolean
 });
 
 const emit = defineEmits(['updateQuestion', 'addQuestion', 'setActive', 'deleteQuestion']);
@@ -30,6 +31,7 @@ const handleUpdate = (index, updates) => {
         :key="q.id"
         :question="q"
         :isActive="activeQuestionId === q.id"
+        :isMaster="isMaster"
         @activate="emit('setActive', q.id)"
         @update="(updates) => handleUpdate(index, updates)"
         @delete="emit('deleteQuestion', index)" 
@@ -40,6 +42,7 @@ const handleUpdate = (index, updates) => {
       -->
       
       <button 
+        v-if="isMaster"
         @click="emit('addQuestion', 'SS')"
         class="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-blue-500 hover:border-blue-200 hover:bg-blue-50 transition-all flex flex-col items-center gap-2 group"
       >

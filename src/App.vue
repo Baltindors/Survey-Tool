@@ -155,6 +155,7 @@ const saveProject = () => {
             <VisualEditor 
               :questions="structures[activeLang]"
               :activeQuestionId="activeQuestionId"
+              :isMaster="activeLang === 'EN'"
               @updateQuestion="({index, updates}) => handleVisualUpdate(index, updates)"
               @addQuestion="addQuestion"
               @setActive="(id) => activeQuestionId = id"

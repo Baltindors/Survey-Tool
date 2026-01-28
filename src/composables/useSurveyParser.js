@@ -17,7 +17,7 @@ export function useSurveyParser() {
       if (qMatch) {
         if (currentQ) questions.push(currentQ);
         currentQ = {
-          id: `q-${index}-${Date.now()}`, // Ensure unique ID
+          id: `q-${index}`, // Stable ID based on index
           type: qMatch[1], // R, SS, MS
           title: qMatch[2].trim(),
           cols: [],
