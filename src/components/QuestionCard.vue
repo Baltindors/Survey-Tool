@@ -1,6 +1,6 @@
 <script setup>
 import { 
-  Grid3X3, CheckSquare, List, Trash2, GripVertical, Plus 
+  Grid3X3, CheckSquare, List, Trash2, GripVertical, Plus, Check, Scaling, MessageSquare
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -24,10 +24,9 @@ const updateQuestion = (updates) => {
 // Helper: generate new ID for new items (always temp)
 const generateId = (prefix) => `temp-${prefix}-${Date.now().toString(36)}`;
 
-const updateColText = (index, text) => {
+const updateCol = (index, updates) => {
   const newCols = [...props.question.cols];
-  // Preserve ID, update text
-  newCols[index] = { ...newCols[index], text };
+  newCols[index] = { ...newCols[index], ...updates };
   updateQuestion({ cols: newCols });
 };
 
@@ -151,14 +150,60 @@ const addRow = () => {
 
     <div v-else class="space-y-2">
       <!-- Use col.id for key -->
-      <div v-for="(opt, oIdx) in question.cols" :key="opt.id" class="flex items-center gap-3 group bg-gray-50/50 p-2 rounded-lg border border-transparent hover:border-blue-100">
-        <div class="w-4 h-4 border-2 border-gray-300 shrink-0" :class="question.type === 'MS' ? 'rounded' : 'rounded-full'" />
-        <input 
-          :value="opt.text"
-          @input="e => updateColText(oIdx, e.target.value)"
-          class="flex-1 bg-transparent border-none text-xs font-medium focus:ring-0 p-0 outline-none"
-        />
-        <button v-if="isMaster" @click="removeCol(oIdx)" class="opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500"><Trash2 :size="14"/></button>
+      <!-- Use col.id for key -->
+      <div v-for="(opt, oIdx) in question.cols" :key="opt.id">
+        <div 
+            class="flex items-center gap-3 group bg-gray-50/50 p-2 rounded-lg border transition-all hover:shadow-sm"
+            :class="opt.isCorrect ? 'border-green-400 bg-green-50/30' : 'border-transparent hover:border-blue-100'"
+        >
+            <div class="w-4 h-4 border-2 shrink-0 flex items-center justify-center transition-colors" 
+                :class="[
+                    question.type === 'MS' ? 'rounded' : 'rounded-full',
+                    opt.isCorrect ? 'border-green-500 bg-green-500 text-white' : 'border-gray-300'
+                ]"
+            >
+                <Check v-if="opt.isCorrect" :size="10" stroke-width="4" />
+            </div>
+
+            <div class="flex-1 flex flex-col">
+                <input 
+                :value="opt.text"
+                @input="e => updateCol(oIdx, { text: e.target.value })"
+                class="w-full bg-transparent border-none text-xs font-medium focus:ring-0 p-0 outline-none"
+                placeholder="Option text..."
+                />
+            </div>
+
+            <!-- ACTIONS -->
+            <div class="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" v-if="isMaster">
+                <!-- Correct Answer Toggle -->
+                 <button 
+                    @click="updateCol(oIdx, { isCorrect: !opt.isCorrect })"
+                    class="p-1.5 rounded transition"
+                    :class="opt.isCorrect ? 'bg-green-100 text-green-600' : 'text-gray-300 hover:text-green-500 hover:bg-green-50'"
+                    title="Mark as Correct Answer"
+                >
+                    <Check :size="14"/>
+                </button>
+
+                <!-- Other Toggle -->
+                 <button 
+                    @click="updateCol(oIdx, { isOther: !opt.isOther })"
+                    class="p-1.5 rounded transition"
+                    :class="opt.isOther ? 'bg-blue-100 text-blue-600' : 'text-gray-300 hover:text-blue-500 hover:bg-blue-50'"
+                    title="Enable 'Other' Specification"
+                >
+                    <MessageSquare :size="14"/>
+                </button>
+
+                <button @click="removeCol(oIdx)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition"><Trash2 :size="14"/></button>
+            </div>
+        </div>
+        
+        <!-- Other Specification Preview -->
+        <div v-if="opt.isOther" class="ml-9 mt-1 mr-2 opacity-75">
+            <input disabled value="Please specify..." class="w-full text-[10px] italic bg-gray-100 border border-gray-200 rounded px-2 py-1 select-none text-gray-400 cursor-not-allowed" />
+        </div>
       </div>
       <button 
         v-if="isMaster"

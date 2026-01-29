@@ -3,15 +3,27 @@ import { ref, computed } from 'vue';
 export function useSurveyParser() {
   
   // Helper to extract ID and clean text
-  // Returns { id: string | null, text: string }
+  // Returns { id: string | null, text: string, isCorrect: boolean, isOther: boolean }
   const parseLine = (line) => {
     const idMatch = line.match(/\{\{ID:(.*?)\}\}/);
+    const isCorrect = line.includes('{{C}}');
+    const isOther = line.includes('{{O}}');
+
     // Use trimStart to remove leading separator space but preserve trailing user input
     // Also remove \r if present from split?
-    const text = line.replace(/\{\{ID:.*?\}\}/, '').trimStart().replace(/[\r\n]+$/, '');
+    // Remove tags from text
+    const text = line
+      .replace(/\{\{ID:.*?\}\}/, '')
+      .replace(/\{\{C\}\}/g, '')
+      .replace(/\{\{O\}\}/g, '')
+      .trimStart()
+      .replace(/[\r\n]+$/, '');
+
     return {
       id: idMatch ? idMatch[1] : null,
-      text
+      text,
+      isCorrect,
+      isOther
     };
   };
 
@@ -54,7 +66,9 @@ export function useSurveyParser() {
           const cIndex = currentQ.cols.length;
           currentQ.cols.push({
              id: parsed.id || generateTempId('c', questions.length, cIndex),
-             text: parsed.text
+             text: parsed.text,
+             isCorrect: parsed.isCorrect,
+             isOther: parsed.isOther
           });
         } else if (trimmed.startsWith('{{ROW}}')) {
           const raw = trimmed.replace('{{ROW}}', '');
@@ -62,7 +76,9 @@ export function useSurveyParser() {
           const rIndex = currentQ.rows.length;
           currentQ.rows.push({
              id: parsed.id || generateTempId('r', questions.length, rIndex),
-             text: parsed.text
+             text: parsed.text,
+             isCorrect: parsed.isCorrect,
+             isOther: parsed.isOther
           });
         }
       }
@@ -80,12 +96,17 @@ export function useSurveyParser() {
       
       q.cols.forEach(c => {
         const cIdTag = c.id && !c.id.startsWith('temp-') ? `{{ID:${c.id}}}` : '';
-        s += `{{COL}} ${cIdTag} ${c.text}\n`;
+        const cCorrect = c.isCorrect ? '{{C}}' : '';
+        const cOther = c.isOther ? '{{O}}' : '';
+        s += `{{COL}} ${cIdTag}${cOther}${cCorrect} ${c.text}\n`;
       });
       
       q.rows.forEach(r => {
         const rIdTag = r.id && !r.id.startsWith('temp-') ? `{{ID:${r.id}}}` : '';
-        s += `{{ROW}} ${rIdTag} ${r.text}\n`;
+        // Rows shouldn't typically have C/O but we preserve structure if present
+        const rCorrect = r.isCorrect ? '{{C}}' : '';
+        const rOther = r.isOther ? '{{O}}' : '';
+        s += `{{ROW}} ${rIdTag}${rOther}${rCorrect} ${r.text}\n`;
       });
       
       return s;

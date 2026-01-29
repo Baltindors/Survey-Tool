@@ -43,7 +43,7 @@ const MOCK_DATA = [
     rows: [],
     cols: [
       { id: "c-3", text: "0-2" },
-      { id: "c-4", text: "3-5" },
+      { id: "c-4", text: "3-5", isCorrect: true },
       { id: "c-5", text: "5+" }
     ]
   },
@@ -53,9 +53,10 @@ const MOCK_DATA = [
     title: "Preferred tools?",
     rows: [],
     cols: [
-      { id: "c--6", text: "Vue" },
+      { id: "c-6", text: "Vue", isCorrect: true },
       { id: "c-7", text: "React" },
-      { id: "c-8", text: "Angular" }
+      { id: "c-8", text: "Angular" },
+      { id: "c-9", text: "Other", isOther: true }
     ]
   }
 ];
@@ -181,8 +182,34 @@ const saveProject = () => {
         }
     });
 
+    // Validate Single Select Logic (Max 1 Correct) across all questions in Master
+    const masterQs = structures.value['EN'];
+    masterQs.forEach((q, idx) => {
+        if (q.type === 'SS') {
+            const correctCount = q.cols.filter(c => c.isCorrect).length;
+            if (correctCount > 1) {
+                 // Push a custom error or just alert? Plan said Global Validation.
+                 // Let's add it to errors? Or a separate alert? 
+                 // Let's block save and show specific message.
+                 // Actually logic below joins errors. But this is logic error, not structural mismatch.
+                 // I'll make a separate check block.
+            }
+        }
+    });
+    
+    // Check SS Correct Counts
+    const ssErrors = masterQs
+        .map((q, i) => ({ q, i }))
+        .filter(({ q }) => q.type === 'SS' && q.cols.filter(c => c.isCorrect).length > 1)
+        .map(({ q, i }) => `Question ${i + 1} ("${q.title}") is Single Select but has multiple correct answers.`);
+
     if (errors.length > 0) {
         alert(`Cannot save: The following languages have structural errors:\n\n${errors.join(', ')}\n\nPlease fix them before exporting.`);
+        return;
+    }
+    
+    if (ssErrors.length > 0) {
+        alert(`Cannot save: Logic Errors found:\n\n${ssErrors.join('\n')}`);
         return;
     }
 
