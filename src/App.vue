@@ -373,7 +373,7 @@ const saveProject = () => {
       </div>
 
       <footer class="h-10 border-t bg-white flex items-center justify-center shrink-0">
-         <span class="text-[9px] text-gray-400 font-bold tracking-widest">© 1997-2026 PRIME EDUCATION, LLC — PRO SURVEY ENGINE</span>
+         <span class="text-[9px] text-gray-400 font-bold tracking-widest">© 1997-2026 PRIME EDUCATION, LLC</span>
       </footer>
     </main>
   </div>
