@@ -137,9 +137,62 @@ export function useSurveyParser() {
     return results;
   };
 
+  const finalizeStructureIds = (questions) => {
+    let hasUpdates = false;
+    const generateUuid = (prefix) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
+
+    questions.forEach(q => {
+        if (!q.id || q.id.startsWith('temp-')) {
+            q.id = generateUuid('q');
+            hasUpdates = true;
+        }
+        q.cols.forEach(c => {
+            if (!c.id || c.id.startsWith('temp-')) {
+                c.id = generateUuid('c');
+                hasUpdates = true;
+            }
+        });
+        q.rows.forEach(r => {
+             if (!r.id || r.id.startsWith('temp-')) {
+                r.id = generateUuid('r');
+                hasUpdates = true;
+            }
+        });
+    });
+    return hasUpdates;
+  };
+
+  const syncStructureToMaster = (masterStructure, currentStructure) => {
+    return masterStructure.map((mQ, i) => {
+      // Attempt to find matching Question in current by ID or Index
+      // Since current might not have IDs yet, simple index fallback is safer for now.
+      const cQ = currentStructure[i] || {};
+      
+      return {
+        ...mQ, // Copy Master Structure (IDs, Type)
+        title: cQ.title || `[Needs Translation: ${mQ.title}]`,
+        // Map cols/rows. Use Master's IDs and Logic (isCorrect, isOther). Try to preserve Current's text.
+        cols: mQ.cols.map((mCol, colIdx) => ({
+            id: mCol.id,
+            text: cQ.cols?.[colIdx]?.text || "",
+            isCorrect: mCol.isCorrect, // Force Sync from Master
+            isOther: mCol.isOther      // Force Sync from Master
+        })),
+        rows: mQ.rows.map((mRow, rowIdx) => ({
+            id: mRow.id,
+            text: cQ.rows?.[rowIdx]?.text || "",
+            isCorrect: mRow.isCorrect, // Force Sync from Master
+            isOther: mRow.isOther      // Force Sync from Master
+        }))
+      };
+    });
+  };
+
   return {
     parseQuestions,
     generateSyntax,
-    validateStructure
+    validateStructure,
+    finalizeStructureIds,
+    syncStructureToMaster
   };
 }

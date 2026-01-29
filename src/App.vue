@@ -1,18 +1,22 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { 
-  Search, Plus, Settings2, AlertCircle, CheckCircle2, RefreshCw 
-} from 'lucide-vue-next';
+import { ref, computed, watch } from 'vue';
+import { Search, Settings2 } from 'lucide-vue-next';
 import { useSurveyParser } from './composables/useSurveyParser';
 import SyntaxEditor from './components/SyntaxEditor.vue';
 import VisualEditor from './components/VisualEditor.vue';
+import LanguageTabs from './components/LanguageTabs.vue';
+import ValidationBanner from './components/ValidationBanner.vue';
 
-const { parseQuestions, generateSyntax, validateStructure } = useSurveyParser();
+const { 
+  parseQuestions, 
+  generateSyntax, 
+  validateStructure, 
+  finalizeStructureIds, 
+  syncStructureToMaster 
+} = useSurveyParser();
 
 const activeLang = ref('EN');
 const languages = ref(['EN']);
-const availableLanguages = ['AR', 'ES', 'FR', 'DE', 'IT', 'PT', 'RU', 'ZH', 'JA'];
-const isLangDropdownOpen = ref(false);
 const activeQuestionId = ref(null);
 
 // Initial State (Flat string, parser will add temp IDs)
@@ -20,62 +24,51 @@ const multiLangSyntax = ref({
   EN: "{{R}}Please rate the quality of the Program\n{{COL}} Unsatisfied\n{{COL}} Satisfied\n{{ROW}} Education\n{{ROW}} Engagement\n\n{{SS}}Which platform do you prefer?\n{{COL}} Desktop\n{{COL}} Mobile"
 });
 
-// Mock Data for "Pre-Activity"
-const MOCK_DATA = [
-  {
-    id: "q-1",
-    type: "R",
-    title: "How effective was the training?",
-    rows: [
-      { id: "r-1", text: "Clarity" },
-      { id: "r-2", text: "Pacing" }
-    ],
-    cols: [
-      { id: "c-1", text: "Low" },
-      { id: "c-2", text: "High" }
-    ]
-  },
-  {
-    id: "q-2",
-    type: "SS",
-    title: "Years of experience?",
-    rows: [],
-    cols: [
-      { id: "c-3", text: "0-2" },
-      { id: "c-4", text: "3-5", isCorrect: true },
-      { id: "c-5", text: "5+" }
-    ]
-  },
-  {
-    id: "q-3",
-    type: "MS",
-    title: "Preferred tools?",
-    rows: [],
-    cols: [
-      { id: "c-6", text: "Vue", isCorrect: true },
-      { id: "c-7", text: "React" },
-      { id: "c-8", text: "Angular" },
-      { id: "c-9", text: "Other", isOther: true }
-    ]
-  }
-];
+// Watcher for Languages to keep multiLangSyntax in sync
+watch(languages, (newLangs) => {
+    // Add missing keys
+    newLangs.forEach(lang => {
+        if (multiLangSyntax.value[lang] === undefined) {
+             multiLangSyntax.value[lang] = "";
+        }
+    });
+    // Remove deleted keys
+    Object.keys(multiLangSyntax.value).forEach(lang => {
+        if (!newLangs.includes(lang)) {
+            delete multiLangSyntax.value[lang];
+        }
+    });
+}, { deep: true });
 
 const loadExistingSurvey = () => {
-    console.log("Loading Pre-Activity Mock Data...", MOCK_DATA);
-    // Convert Mock Data Objects -> Syntax String with IDs
-    const syntax = generateSyntax(MOCK_DATA);
+    // Simulated raw syntax string with IDs from backend/file
+    const rawSyntax = `{{R}}{{ID:q-1}} Please rate the quality of the Program
+{{COL}} {{ID:c-1}} Unsatisfied
+{{COL}} {{ID:c-2}} Satisfied
+{{ROW}} {{ID:r-1}} Education
+{{ROW}} {{ID:r-2}} Engagement
+
+{{SS}}{{ID:q-2}} Which platform do you prefer?
+{{COL}} {{ID:c-3}} Desktop
+{{COL}} {{ID:c-4}} {{C}} Mobile
+{{COL}} {{ID:c-5}} Test
+
+{{MS}}{{ID:q-3}} Preferred tools?
+{{COL}} {{ID:c-6}} {{C}} Vue
+{{COL}} {{ID:c-7}} React
+{{COL}} {{ID:c-8}} Angular
+{{COL}} {{ID:c-9}} {{O}} Other`;
+
+    console.log("Loading Raw Syntax string...");
+    multiLangSyntax.value['EN'] = rawSyntax;
     
-    // Update Master (EN)
-    multiLangSyntax.value['EN'] = syntax;
-    
-    // Clear others or simulate translation??
-    // Let's just reset others to empty to force user to 'Sync'
+    // Reset others
     languages.value.forEach(l => {
         if (l !== 'EN') multiLangSyntax.value[l] = "";
     });
     
     activeLang.value = 'EN';
-    alert("Pre-Activity Survey Loaded! Check console.");
+    alert("Survey Loaded from Raw Syntax!");
 };
 
 const structures = computed(() => {
@@ -123,16 +116,10 @@ const toggleLanguage = (lang) => {
 
   const idx = languages.value.indexOf(lang);
   if (idx === -1) {
-    // Add
     languages.value.push(lang);
-    if (!multiLangSyntax.value[lang]) {
-        multiLangSyntax.value[lang] = ""; // Initialize
-    }
   } else {
-    // Remove
     if (confirm(`Are you sure you want to remove ${lang}? This will delete its content.`)) {
         languages.value.splice(idx, 1);
-        delete multiLangSyntax.value[lang]; // Optional: Clean up memory (or keep it if untoggled? Plan said delete)
         if (activeLang.value === lang) {
             activeLang.value = 'EN';
         }
@@ -141,33 +128,15 @@ const toggleLanguage = (lang) => {
 };
 
 const syncAllToMaster = (lang) => {
-  const master = structures.value[languages.value[0]];
-  const current = structures.value[lang];
-
-  const synced = master.map((mQ, i) => {
-    // Attempt to find matching Question in current by ID or Index
-    // Since current might not have IDs yet, simple index fallback is safer for now unless we know current has IDs.
-    const cQ = current[i] || {};
-    
-    return {
-      ...mQ, // Copy Master Structure (IDs, Type)
-      title: cQ.title || `[Needs Translation: ${mQ.title}]`,
-      // Map cols/rows. Use Master's IDs. Try to preserve Current's text.
-      cols: mQ.cols.map((mCol, colIdx) => ({
-          id: mCol.id,
-          text: cQ.cols?.[colIdx]?.text || ""
-      })),
-      rows: mQ.rows.map((mRow, rowIdx) => ({
-          id: mRow.id,
-          text: cQ.rows?.[rowIdx]?.text || ""
-      }))
-    };
-  });
-  updateSyntax(lang, generateSyntax(synced));
+  const masterStruct = structures.value[languages.value[0]];
+  const currentStruct = structures.value[lang];
+  
+  const syncedQuestions = syncStructureToMaster(masterStruct, currentStruct);
+  updateSyntax(lang, generateSyntax(syncedQuestions));
 };
 
 const saveProject = () => {
-    // Global Validation Check
+    // 1. Validate All
     const errors = [];
     languages.value.forEach(lang => {
         if (!validation.value[lang].isValid) {
@@ -175,63 +144,20 @@ const saveProject = () => {
         }
     });
 
-    // Validate Single Select Logic (Max 1 Correct) across all questions in Master
-    const masterQs = structures.value['EN'];
-    masterQs.forEach((q, idx) => {
-        if (q.type === 'SS') {
-            const correctCount = q.cols.filter(c => c.isCorrect).length;
-            if (correctCount > 1) {
-
-            }
-        }
-    });
-    
-    // Check SS Correct Counts
-    const ssErrors = masterQs
-        .map((q, i) => ({ q, i }))
-        .filter(({ q }) => q.type === 'SS' && q.cols.filter(c => c.isCorrect).length > 1)
-        .map(({ q, i }) => `Question ${i + 1} ("${q.title}") is Single Select but has multiple correct answers.`);
-
     if (errors.length > 0) {
         alert(`Cannot save: The following languages have structural errors:\n\n${errors.join(', ')}\n\nPlease fix them before exporting.`);
         return;
     }
-    
-    if (ssErrors.length > 0) {
-        alert(`Cannot save: Logic Errors found:\n\n${ssErrors.join('\n')}`);
-        return;
-    }
 
-    // Finalize IDs: Replace 'temp-' IDs with real UUIDs
+    // 2. Finalize IDs (if needed)
     const masterQuestions = [...structures.value['EN']];
-    let hasUpdates = false;
-    
-    const generateUuid = (prefix) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
-
-    masterQuestions.forEach(q => {
-        if (!q.id || q.id.startsWith('temp-')) {
-            q.id = generateUuid('q');
-            hasUpdates = true;
-        }
-        q.cols.forEach(c => {
-            if (!c.id || c.id.startsWith('temp-')) {
-                c.id = generateUuid('c');
-                hasUpdates = true;
-            }
-        });
-        q.rows.forEach(r => {
-             if (!r.id || r.id.startsWith('temp-')) {
-                r.id = generateUuid('r');
-                hasUpdates = true;
-            }
-        });
-    });
+    const hasUpdates = finalizeStructureIds(masterQuestions);
 
     if (hasUpdates) {
         updateSyntax('EN', generateSyntax(masterQuestions));
     }
 
-    
+    // 3. Export Data
     console.log("Saving Project (IDs Finalized)...", JSON.stringify(multiLangSyntax.value, null, 2));
     alert("Project saved! IDs finalized.");
 }
@@ -268,65 +194,23 @@ const saveProject = () => {
       </header>
 
       <div class="flex-1 overflow-y-auto p-6 max-w-7xl mx-auto w-full">
-        <!-- Top Bar: Languages -->
+        <!-- New Component: Language Tabs -->
         <div class="flex items-center justify-between border-b mb-6 bg-white rounded-t-lg px-4 shadow-sm relative z-20">
-          <div class="flex items-center flex-1 gap-2 min-w-0">
-            <!-- Scrollable Tabs -->
-            <div class="flex gap-1 overflow-x-auto no-scrollbar scroll-smooth flex-1">
-                <button 
-                v-for="lang in languages"
-                :key="lang"
-                @click="activeLang = lang"
-                class="relative px-6 py-4 text-xs font-black transition flex items-center gap-2 tracking-tighter shrink-0 whitespace-nowrap"
-                :class="activeLang === lang ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'"
-                >
-                {{ lang }}
-                <AlertCircle v-if="!validation[lang].isValid" :size="12" class="text-red-500" />
-                <CheckCircle2 v-else-if="lang !== languages[0]" :size="12" class="text-green-500" />
-                </button>
-            </div>
+          <LanguageTabs 
+            :languages="languages"
+            :activeLang="activeLang"
+            :validation="validation"
+            @update:activeLang="activeLang = $event"
+            @toggleLanguage="toggleLanguage"
+          />
 
-            <!-- Fixed Add Button -->
-            <div class="pl-2 border-l border-gray-100 relative shrink-0 z-50">
-                 <button class="relative px-2 py-2 text-gray-300 hover:text-blue-500 transition rounded-full hover:bg-gray-50" @click="isLangDropdownOpen = !isLangDropdownOpen">
-                    <Plus :size="18"/>
-                 </button>
-                 
-                 <!-- Dropdown -->
-                 <div v-if="isLangDropdownOpen" class="absolute top-full right-0 mt-2 w-48 bg-white border rounded-lg shadow-xl z-50 py-2 flex flex-col items-start overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-100">
-                      <h3 class="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-full text-left">Manage Languages</h3>
-                      <div class="w-full max-h-60 overflow-y-auto custom-scrollbar">
-                          <label 
-                              v-for="lang in availableLanguages" 
-                              :key="lang"
-                              class="flex items-center gap-3 px-4 py-2 hover:bg-blue-50 cursor-pointer w-full text-left group transition-colors"
-                          >
-                              <div class="relative flex items-center">
-                                  <input 
-                                      type="checkbox" 
-                                      :checked="languages.includes(lang)"
-                                      :disabled="lang === 'EN'"
-                                      @change="toggleLanguage(lang)"
-                                      class="peer appearance-none w-4 h-4 border-2 border-gray-300 rounded checked:bg-blue-600 checked:border-blue-600 transition disabled:opacity-50"
-                                  />
-                                   <CheckCircle2 class="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none left-0.5" :size="12" />
-                              </div>
-                              <span class="text-xs font-bold" :class="languages.includes(lang) ? 'text-blue-900' : 'text-gray-500 group-hover:text-blue-600'">{{ lang }}</span>
-                          </label>
-                      </div>
-                  </div>
-            </div>
-          </div>
-
-          <!-- Right Side: Validation / Sync -->
-          <div v-if="!validation[activeLang].isValid" class="flex items-center pl-4 shrink-0">
-            <button 
-              @click="syncAllToMaster(activeLang)"
-              class="flex items-center gap-2 text-[10px] font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full border border-red-100 hover:bg-red-100 transition animate-pulse whitespace-nowrap"
-            >
-              <RefreshCw :size="10" /> SYNC STRUCTURE TO {{ languages[0] }}
-            </button>
-          </div>
+          <!-- New Component: Validation Banner -->
+          <ValidationBanner 
+             :isValid="validation[activeLang].isValid"
+             :targetLang="activeLang"
+             :masterLang="languages[0]"
+             @sync="syncAllToMaster(activeLang)"
+          />
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100%-100px)]">
