@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+
 
 export function useSurveyParser() {
   
@@ -10,8 +10,6 @@ export function useSurveyParser() {
     const isOther = line.includes('{{O}}');
 
     // Use trimStart to remove leading separator space but preserve trailing user input
-    // Also remove \r if present from split?
-    // Remove tags from text
     const text = line
       .replace(/\{\{ID:.*?\}\}/, '')
       .replace(/\{\{C\}\}/g, '')

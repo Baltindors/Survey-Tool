@@ -16,7 +16,6 @@ const isLangDropdownOpen = ref(false);
 const activeQuestionId = ref(null);
 
 // Initial State (Flat string, parser will add temp IDs)
-// Initial State (Flat string, parser will add temp IDs)
 const multiLangSyntax = ref({
   EN: "{{R}}Please rate the quality of the Program\n{{COL}} Unsatisfied\n{{COL}} Satisfied\n{{ROW}} Education\n{{ROW}} Engagement\n\n{{SS}}Which platform do you prefer?\n{{COL}} Desktop\n{{COL}} Mobile"
 });
@@ -69,8 +68,6 @@ const loadExistingSurvey = () => {
     // Update Master (EN)
     multiLangSyntax.value['EN'] = syntax;
     
-    // Clear others or simulate translation??
-    // Let's just reset others to empty to force user to 'Sync'
     // Clear others or simulate translation??
     // Let's just reset others to empty to force user to 'Sync'
     languages.value.forEach(l => {
@@ -146,11 +143,7 @@ const toggleLanguage = (lang) => {
 const syncAllToMaster = (lang) => {
   const master = structures.value[languages.value[0]];
   const current = structures.value[lang];
-  
-  // Try to match by ID first? Or just index as per original logic?
-  // User asked for "Missing mustache tags from Master to secondary".
-  // If we assume structure sync, we copy master structure and fill text from current if available.
-  
+
   const synced = master.map((mQ, i) => {
     // Attempt to find matching Question in current by ID or Index
     // Since current might not have IDs yet, simple index fallback is safer for now unless we know current has IDs.
@@ -188,11 +181,7 @@ const saveProject = () => {
         if (q.type === 'SS') {
             const correctCount = q.cols.filter(c => c.isCorrect).length;
             if (correctCount > 1) {
-                 // Push a custom error or just alert? Plan said Global Validation.
-                 // Let's add it to errors? Or a separate alert? 
-                 // Let's block save and show specific message.
-                 // Actually logic below joins errors. But this is logic error, not structural mismatch.
-                 // I'll make a separate check block.
+
             }
         }
     });
@@ -242,12 +231,6 @@ const saveProject = () => {
         updateSyntax('EN', generateSyntax(masterQuestions));
     }
 
-    // Allow Vue to react to the update before logging (nextTick would be better but simple sequential call works for ref sync usually if logic is sync)
-    // Actually generateSyntax above updates the ref.
-    
-    // We should probably wait a tick, but for now just logging the *updated* ref value is fine.
-    // However, the computed 'structures' might not have re-run yet? 
-    // updateSyntax updates 'multiLangSyntax'. 
     
     console.log("Saving Project (IDs Finalized)...", JSON.stringify(multiLangSyntax.value, null, 2));
     alert("Project saved! IDs finalized.");

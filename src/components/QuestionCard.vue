@@ -150,7 +150,6 @@ const addRow = () => {
 
     <div v-else class="space-y-2">
       <!-- Use col.id for key -->
-      <!-- Use col.id for key -->
       <div v-for="(opt, oIdx) in question.cols" :key="opt.id">
         <div 
             class="flex items-center gap-3 group bg-gray-50/50 p-2 rounded-lg border transition-all hover:shadow-sm"

@@ -36,10 +36,6 @@ const handleUpdate = (index, updates) => {
         @update="(updates) => handleUpdate(index, updates)"
         @delete="emit('deleteQuestion', index)" 
       />
-      <!-- Note: Delete logic for splicing needs to be handled by parent if we want to be pure, but array mutation might work if ref. 
-           Wait, props are read-only-ish. Better to emit delete index. 
-           Actually, let's fix the @delete to emit an event to parent.
-      -->
       
       <button 
         v-if="isMaster"
