@@ -6,7 +6,9 @@ export function useSurveyParser() {
   // Returns { id: string | null, text: string }
   const parseLine = (line) => {
     const idMatch = line.match(/\{\{ID:(.*?)\}\}/);
-    const text = line.replace(/\{\{ID:.*?\}\}/, '').trim();
+    // Use trimStart to remove leading separator space but preserve trailing user input
+    // Also remove \r if present from split?
+    const text = line.replace(/\{\{ID:.*?\}\}/, '').trimStart().replace(/[\r\n]+$/, '');
     return {
       id: idMatch ? idMatch[1] : null,
       text
@@ -24,14 +26,17 @@ export function useSurveyParser() {
     let currentQ = null;
 
     lines.forEach((line, index) => {
-      const trimmed = line.trim();
-      if (!trimmed) return;
+      // Only trim start to allow trailing spaces in content
+      const trimmed = line.trimStart(); 
+      // check for empty lines (whitespace only lines become empty string)
+      if (!trimmed && !line.trim()) return;
 
       const qMatch = trimmed.match(/^\{\{(R|SS|MS)\}\}(.*)/);
       if (qMatch) {
          if (currentQ) questions.push(currentQ);
          
-         const rawTitle = qMatch[2].trim();
+         // qMatch[2] is the rest of the line (Title). Preserve trailing.
+         const rawTitle = qMatch[2]; 
          const parsedTitle = parseLine(rawTitle);
          
          const qIndex = questions.length; // Approximate index for temp ID
@@ -44,7 +49,7 @@ export function useSurveyParser() {
         };
       } else if (currentQ) {
         if (trimmed.startsWith('{{COL}}')) {
-          const raw = trimmed.replace('{{COL}}', '').trim();
+          const raw = trimmed.replace('{{COL}}', '');
           const parsed = parseLine(raw);
           const cIndex = currentQ.cols.length;
           currentQ.cols.push({
@@ -52,7 +57,7 @@ export function useSurveyParser() {
              text: parsed.text
           });
         } else if (trimmed.startsWith('{{ROW}}')) {
-          const raw = trimmed.replace('{{ROW}}', '').trim();
+          const raw = trimmed.replace('{{ROW}}', '');
           const parsed = parseLine(raw);
           const rIndex = currentQ.rows.length;
           currentQ.rows.push({
