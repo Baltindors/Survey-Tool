@@ -1,7 +1,11 @@
 <script setup>
+import { ref, nextTick } from 'vue';
 import { 
   Grid3X3, CheckSquare, List, Trash2, GripVertical, Plus, Check, Scaling, MessageSquare
 } from 'lucide-vue-next';
+import { useSurveyParser } from '../composables/useSurveyParser';
+
+const { formatRichText } = useSurveyParser();
 
 const props = defineProps({
   question: {
@@ -55,6 +59,37 @@ const addRow = () => {
   const newRow = { id: generateId('r'), text: "New Row" };
   updateQuestion({ rows: [...props.question.rows, newRow] });
 };
+
+const handleShortcut = (e, currentValue, updateFn) => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  
+  const key = e.key.toLowerCase();
+  let prefix = '';
+  let suffix = '';
+  
+  if (key === 'b') { prefix = '**'; suffix = '**'; }
+  else if (key === 'i') { prefix = '_'; suffix = '_'; }
+  else if (key === 'u') { prefix = '<u>'; suffix = '</u>'; }
+  else return;
+  
+  e.preventDefault();
+  
+  const input = e.target;
+  const start = input.selectionStart;
+  const end = input.selectionEnd;
+  const text = currentValue || '';
+  
+  const selectedText = text.substring(start, end);
+  const newValue = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
+  
+  updateFn(newValue);
+  
+  nextTick(() => {
+    input.selectionStart = start + prefix.length;
+    input.selectionEnd = end + prefix.length;
+    input.focus();
+  });
+};
 </script>
 
 <template>
@@ -97,11 +132,18 @@ const addRow = () => {
     <!-- Question Title -->
     <div class="mb-6">
       <input 
+        v-if="isActive"
         :value="question.title"
         @input="e => updateQuestion({ title: e.target.value })"
+        @keydown="e => handleShortcut(e, question.title, val => updateQuestion({ title: val }))"
         class="w-full text-base font-bold text-slate-800 border-none focus:ring-0 p-1 hover:bg-blue-50/50 rounded transition outline-none"
         placeholder="Type question here..."
       />
+      <div 
+        v-else 
+        class="w-full text-base font-bold text-slate-800 p-1 pointer-events-none"
+        v-html="formatRichText(question.title || 'Type question here...')"
+      ></div>
     </div>
 
     <!-- Body: Conditional Rendering based on type -->
@@ -111,12 +153,20 @@ const addRow = () => {
           <tr>
             <th class="w-32"></th>
             <!-- Use col.id for key -->
+            <!-- Use col.id for key -->
             <th v-for="(col, cIdx) in question.cols" :key="col.id" class="p-1 group relative">
               <input 
+                v-if="isActive"
                 :value="col.text"
                 @input="e => updateColText(cIdx, e.target.value)"
+                @keydown="e => handleShortcut(e, col.text, val => updateColText(cIdx, val))"
                 class="w-full text-[10px] text-center font-bold text-gray-500 border-none bg-gray-50 rounded py-2 outline-none"
               />
+              <div 
+                v-else 
+                class="w-full text-[10px] text-center font-bold text-gray-500 bg-gray-50 rounded py-2 pointer-events-none"
+                v-html="formatRichText(col.text)"
+              ></div>
               <button v-if="isMaster" @click="removeCol(cIdx)" class="absolute -top-1 right-0 opacity-0 group-hover:opacity-100 text-red-400"><Trash2 :size="10"/></button>
             </th>
             <th v-if="isMaster"><button @click="addCol" class="p-2 text-blue-500 hover:bg-blue-50 rounded"><Plus :size="14"/></button></th>
@@ -128,10 +178,17 @@ const addRow = () => {
               <div class="flex items-center gap-1">
                 <button v-if="isMaster" @click="removeRow(rIdx)" class="opacity-0 group-hover:opacity-100 text-red-300"><Trash2 :size="12"/></button>
                 <input 
+                  v-if="isActive"
                   :value="row.text"
                   @input="e => updateRowText(rIdx, e.target.value)"
+                  @keydown="e => handleShortcut(e, row.text, val => updateRowText(rIdx, val))"
                   class="w-full text-xs font-medium border-none p-1 hover:bg-blue-50/50 rounded outline-none"
                 />
+                <div 
+                  v-else 
+                  class="w-full text-xs font-medium p-1 pointer-events-none"
+                  v-html="formatRichText(row.text)"
+                ></div>
               </div>
             </td>
             <td v-for="(_, cIdx) in question.cols" :key="cIdx" class="p-2 text-center">
@@ -166,11 +223,18 @@ const addRow = () => {
 
             <div class="flex-1 flex flex-col">
                 <input 
-                :value="opt.text"
-                @input="e => updateCol(oIdx, { text: e.target.value })"
-                class="w-full bg-transparent border-none text-xs font-medium focus:ring-0 p-0 outline-none"
-                placeholder="Option text..."
+                  v-if="isActive"
+                  :value="opt.text"
+                  @input="e => updateCol(oIdx, { text: e.target.value })"
+                  @keydown="e => handleShortcut(e, opt.text, val => updateCol(oIdx, { text: val }))"
+                  class="w-full bg-transparent border-none text-xs font-medium focus:ring-0 p-0 outline-none"
+                  placeholder="Option text..."
                 />
+                <div 
+                  v-else 
+                  class="w-full text-xs font-medium pointer-events-none"
+                  v-html="formatRichText(opt.text || 'Option text...')"
+                ></div>
             </div>
 
             <!-- ACTIONS -->

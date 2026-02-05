@@ -42,21 +42,21 @@ watch(languages, (newLangs) => {
 
 const loadExistingSurvey = () => {
     // Simulated raw syntax string with IDs from backend/file
-    const rawSyntax = `{{R}}{{ID:q-1}} Please rate the quality of the Program
-{{COL}} {{ID:c-1}} Unsatisfied
-{{COL}} {{ID:c-2}} Satisfied
-{{ROW}} {{ID:r-1}} Education
-{{ROW}} {{ID:r-2}} Engagement
+    const rawSyntax = `{{R}}{{ID:q-1}} Welcome to the **Rich-Text** _Feature Tour_!
+{{COL}} {{ID:c-1}} **Strong** Agree
+{{COL}} {{ID:c-2}} _Slight_ Disagree
+{{ROW}} {{ID:r-1}} Formatting
+{{ROW}} {{ID:r-2}} <u>Ease of Use</u>
 
-{{SS}}{{ID:q-2}} Which platform do you prefer?
-{{COL}} {{ID:c-3}} Desktop
-{{COL}} {{ID:c-4}} {{C}} Mobile
-{{COL}} {{ID:c-5}} Test
+{{SS}}{{ID:q-2}} Rate these compounds:
+{{COL}} {{ID:c-3}} H<sub>2</sub>O
+{{COL}} {{ID:c-4}} {{C}} E=mc<sup>2</sup>
+{{COL}} {{ID:c-5}} CO<sub>2</sub>
 
-{{MS}}{{ID:q-3}} Preferred tools?
-{{COL}} {{ID:c-6}} {{C}} Vue
-{{COL}} {{ID:c-7}} React
-{{COL}} {{ID:c-8}} Angular
+{{MS}}{{ID:q-3}} Feedback?
+{{COL}} {{ID:c-6}} {{C}} [Visit Website](https://example.com) to learn more
+{{COL}} {{ID:c-7}} **Email** us
+{{COL}} {{ID:c-8}} No _comments_
 {{COL}} {{ID:c-9}} {{O}} Other`;
 
     console.log("Loading Raw Syntax string...");

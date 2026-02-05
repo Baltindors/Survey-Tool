@@ -188,11 +188,33 @@ export function useSurveyParser() {
     });
   };
 
+  const formatRichText = (text) => {
+    if (!text) return '';
+    
+    // 1. Bold: **text** -> <strong>text</strong>
+    let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // 2. Italics: _text_ -> <em>text</em>
+    formatted = formatted.replace(/_([^_]+)_/g, '<em>$1</em>');
+    
+    // 3. Links: [text](url) -> <a href="url"...>text</a>
+    formatted = formatted.replace(
+      /\[(.*?)\]\((.*?)\)/g, 
+      '<a href="$2" target="_blank" class="text-blue-600 underline" rel="noopener noreferrer">$1</a>'
+    );
+
+    // 4. Pass-through for <u>, <sub>, <sup> is handled naturally by v-html 
+    // since we return the string with HTML tags.
+    
+    return formatted;
+  };
+
   return {
     parseQuestions,
     generateSyntax,
     validateStructure,
     finalizeStructureIds,
-    syncStructureToMaster
+    syncStructureToMaster,
+    formatRichText
   };
 }
