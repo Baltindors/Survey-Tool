@@ -24,7 +24,42 @@ const value = computed({
   <div class="flex flex-col h-full min-h-[500px]">
     <div class="flex items-center justify-between mb-3 px-1">
       <h2 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Syntax Editor ({{ activeLang }})</h2>
-      <div class="text-[10px] text-gray-400 italic">Tags: R, SS, MS, COL, ROW</div>
+      <div class="group relative flex items-center gap-1 cursor-help">
+        <span class="text-[10px] text-gray-400 italic border-b border-dashed border-gray-400">Documentation</span>
+        
+        <!-- Tooltip -->
+        <div class="absolute right-0 top-full mt-2 w-64 bg-slate-800 text-slate-200 text-[10px] p-3 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 border border-slate-700">
+          <div class="space-y-3" v-pre>
+            <div>
+              <div class="font-bold text-blue-400 mb-1 border-b border-white/10 pb-0.5">Structure</div>
+              <div class="grid grid-cols-4 gap-1">
+                <code>R</code> <code>SS</code> <code>MS</code> <code>COL</code> <code>ROW</code>
+              </div>
+            </div>
+            <div>
+              <div class="font-bold text-green-400 mb-1 border-b border-white/10 pb-0.5">Logic</div>
+              <div class="flex flex-col gap-1">
+                <div><code>{{ID:x}}</code> Unique ID</div>
+                <div><code>{{C}}</code> Correct Answer</div>
+                <div><code>{{O}}</code> Other/Specify</div>
+              </div>
+            </div>
+            <div>
+              <div class="font-bold text-purple-400 mb-1 border-b border-white/10 pb-0.5">Formatting</div>
+              <div class="grid grid-cols-2 gap-x-2 gap-y-1">
+                <div><code>**B**</code> Bold</div>
+                <div><code>_I_</code> Italic</div>
+                <div><code>&lt;u&gt;</code> Underline</div>
+                <div><code>[Tx](Url)</code> Link</div>
+                <div><code>&lt;sup&gt;</code> Sup</div>
+                <div><code>&lt;sub&gt;</code> Sub</div>
+              </div>
+            </div>
+          </div>
+          <!-- Triangle -->
+          <div class="absolute -top-1 right-2 w-2 h-2 bg-slate-800 rotate-45 border-t border-l border-slate-700"></div>
+        </div>
+      </div>
     </div>
     <div class="bg-[#1e1e1e] rounded-lg shadow-xl overflow-hidden flex-1 flex flex-col">
       <div class="bg-[#2d2d2d] px-4 py-2 flex gap-4 text-gray-400 border-b border-black/20">
