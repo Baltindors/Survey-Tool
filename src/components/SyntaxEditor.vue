@@ -32,12 +32,20 @@ const value = computed({
           <div class="space-y-3" v-pre>
             <div>
               <div class="font-bold text-blue-400 mb-1 border-b border-white/10 pb-0.5">Structure</div>
-              <div class="flex flex-col gap-1">
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1">
                 <div><code>{{R}}</code> Rating</div>
                 <div><code>{{SS}}</code> Single Select</div>
                 <div><code>{{MS}}</code> Multi Select</div>
                 <div><code>{{COL}}</code> Column</div>
                 <div><code>{{ROW}}</code> Row</div>
+                <div><code>{{T}}</code> Text</div>
+                <div><code>{{T:l}}</code> Long Text</div>
+                <div><code>{{T:n}}</code> Number</div>
+                <div><code>{{T:p}}</code> Phone number</div>
+                <div><code>{{T:e}}</code> Email</div>
+                <div><code>{{T:d}}</code> Date</div>
+                <div><code>{{T:t}}</code> Time</div>
+                <div><code>{{T:dt}}</code> Date Time</div>
               </div>
             </div>
             <div>
