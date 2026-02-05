@@ -62,8 +62,8 @@ const value = computed({
                 <div><code>_I_</code> Italic</div>
                 <div><code>&lt;u&gt;</code> Underline</div>
                 <div><code>[Tx](Url)</code> Link</div>
-                <div><code>&lt;sup&gt;</code> Sup</div>
-                <div><code>&lt;sub&gt;</code> Sub</div>
+                <div><code>&lt;sup&gt;</code> Superscript</div>
+                <div><code>&lt;sub&gt;</code> Subscript</div>
               </div>
             </div>
           </div>
