@@ -32,8 +32,12 @@ const value = computed({
           <div class="space-y-3" v-pre>
             <div>
               <div class="font-bold text-blue-400 mb-1 border-b border-white/10 pb-0.5">Structure</div>
-              <div class="grid grid-cols-4 gap-1">
-                <code>R</code> <code>SS</code> <code>MS</code> <code>COL</code> <code>ROW</code>
+              <div class="flex flex-col gap-1">
+                <div><code>{{R}}</code> Rating</div>
+                <div><code>{{SS}}</code> Single Select</div>
+                <div><code>{{MS}}</code> Multi Select</div>
+                <div><code>{{COL}}</code> Column</div>
+                <div><code>{{ROW}}</code> Row</div>
               </div>
             </div>
             <div>
@@ -42,6 +46,13 @@ const value = computed({
                 <div><code>{{ID:x}}</code> Unique ID</div>
                 <div><code>{{C}}</code> Correct Answer</div>
                 <div><code>{{O}}</code> Other/Specify</div>
+                <div><code>{{O:n}}</code> Other/numeric</div>
+                <div><code>{{O:p}}</code> Other/phone number</div>
+                <div><code>{{O:e}}</code> Other/emails</div>
+                <div><code>{{O:d}}</code> Other/date</div>
+                <div><code>{{O:t}}</code> Other/time</div>
+                <div><code>{{O:dt}}</code> Other/datetime</div>
+
               </div>
             </div>
             <div>
